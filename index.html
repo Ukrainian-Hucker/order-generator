@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Генератор бланка ордера НААУ by Bandera</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'EB Garamond', 'Georgia', 'Times New Roman', serif;
+      --a4-width: 794px;
+      --a4-height: 1123px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    .sheet-viewport {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow: hidden;
+    }
+
+    .sheet-scale-box {
+      width: var(--a4-width);
+      height: var(--a4-height);
+      transform-origin: top center;
+      flex-shrink: 0;
+    }
+
+    .order-sheet {
+      width: 794px;
+      height: 1123px;
+      position: relative;
+      background-color: #fbfaf4;
+      color: #1c2230;
+      font-family: var(--font-serif);
+      overflow: hidden;
+      box-shadow: 0 24px 60px -15px rgba(15, 23, 42, 0.32), 0 0 0 1px rgba(148, 163, 184, 0.3);
+      user-select: text;
+    }
+
+    .sheet-vector-backdrop {
+      position: absolute;
+      inset: 0;
+      width: 794px;
+      height: 1123px;
+      pointer-events: none;
+      z-index: 0;
+      display: block;
+    }
+
+    .order-sheet-content {
+      position: relative;
+      z-index: 2;
+      width: 794px;
+      height: 1123px;
+      padding: 38px 46px 28px 46px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .sheet-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+    .sheet-series {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #0f172a;
+      padding-top: 6px;
+    }
+    .sheet-number {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #0f172a;
+      padding-top: 6px;
+      text-align: right;
+    }
+    .sheet-emblem {
+      width: 58px;
+      height: 63px;
+      margin-top: -4px;
+    }
+    .sheet-org-title {
+      margin-top: 4px;
+      text-align: center;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.25;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #173a73;
+    }
+    .sheet-main-title {
+      margin-top: 4px;
+      text-align: center;
+      font-family: var(--font-sans);
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #173a73;
+    }
+    .sheet-sub-title {
+      margin-top: 4px;
+      text-align: center;
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #173a73;
+    }
+
+    .sheet-body {
+      font-size: 14.5px;
+      line-height: 1.3;
+      color: #1c2230;
+    }
+    .sheet-section {
+      margin-bottom: 8px;
+    }
+    .editable-slot {
+      cursor: text;
+      border-radius: 3px;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .editable-slot:hover {
+      background-color: rgba(23, 58, 115, 0.07);
+      box-shadow: 0 0 0 1px rgba(23, 58, 115, 0.25);
+    }
+    .editable-slot:focus {
+      outline: none;
+      background-color: rgba(23, 58, 115, 0.11);
+      box-shadow: 0 0 0 1.5px #173a73;
+    }
+
+    /* Лінія знизу через градієнт фону, щоб html2canvas не зміщував border-bottom поверх тексту */
+    .fill-line {
+      display: block;
+      width: 100%;
+      min-height: 24px;
+      padding: 2px 8px 5px 8px;
+      font-weight: 600;
+      color: #111827;
+      text-align: center;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .fill-line::after,
+    .inline-blank::after,
+    .sig-visual-slot::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 1px;
+      background: #2b3344;
+      pointer-events: none;
+    }
+
+    .inline-blank {
+      display: inline-block;
+      min-width: 36px;
+      padding: 1px 6px 4px 6px;
+      line-height: 1.05;
+      vertical-align: baseline;
+      text-align: center;
+      font-weight: 600;
+      color: #111827;
+      white-space: nowrap;
+      position: relative;
+    }
+    /* Експорт PNG: опускаємо риску нижче базової лінії тексту,
+       оскільки html2canvas інакше може намалювати її крізь цифри. */
+    .inline-blank::after {
+      bottom: -4px;
+    }
+
+    .inline-blank.w-sm { min-width: 36px; }
+    .inline-blank.w-md { min-width: 72px; }
+    .inline-blank.w-lg { min-width: 104px; }
+
+    .caption-text {
+      font-size: 10.5px;
+      line-height: 1.18;
+      color: #374151;
+      margin-top: 2px;
+      text-align: center;
+    }
+
+    .organ-flex-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .organ-flex-row .fill-line {
+      flex: 1;
+      width: auto;
+    }
+
+    .sheet-footer {
+      padding-top: 6px;
+      font-size: 14.5px;
+      line-height: 1.25;
+    }
+    .footer-row {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .footer-row + .footer-row {
+      margin-top: 12px;
+    }
+    .sig-box-wrap {
+      width: 190px;
+      text-align: center;
+    }
+    .sig-visual-slot {
+      position: relative;
+      height: 38px;
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 0 6px 4px 6px;
+      overflow: hidden;
+      position: relative;
+    }
+    .sig-visual-img {
+      max-height: 34px;
+      max-width: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      display: block;
+    }
+    .sig-visual-text {
+      display: block;
+      width: 100%;
+      min-height: 20px;
+      font-weight: 600;
+      color: #111827;
+      line-height: 1.12;
+      text-align: center;
+      white-space: nowrap;
+      position: relative;
+      z-index: 1;
+    }
+
+    .sig-pad-canvas {
+      width: 100%;
+      height: 84px;
+      border-radius: 10px;
+      background-color: #fbfaf4;
+      border: 1px solid rgb(203 213 225);
+      touch-action: none;
+      cursor: crosshair;
+      display: block;
+    }
+    .dark .sig-pad-canvas {
+      border-color: rgb(51 65 85);
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+
+      html, body {
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fbfaf4 !important;
+        overflow: hidden !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      .print-only-container {
+        width: 210mm !important;
+        height: 297mm !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+
+      .sheet-viewport {
+        width: 210mm !important;
+        height: 297mm !important;
+        display: block !important;
+        overflow: visible !important;
+      }
+
+      .sheet-scale-box {
+        width: 210mm !important;
+        height: 297mm !important;
+        transform: none !important;
+      }
+
+      .order-sheet {
+        width: 210mm !important;
+        height: 297mm !important;
+        box-shadow: none !important;
+        border: none !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .editable-slot:hover,
+      .editable-slot:focus {
+        background-color: transparent !important;
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors">
+
+  <div id="toast-banner" class="no-print fixed bottom-5 right-5 z-50 max-w-sm rounded-xl bg-slate-900 text-white px-4 py-3 text-sm font-medium shadow-xl border border-slate-700/80 hidden">
+    <div class="flex items-center gap-2.5">
+      <span id="toast-dot" class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-400"></span>
+      <span id="toast-message">Готово</span>
+    </div>
+  </div>
+
+  <header class="no-print sticky top-0 z-30 border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md">
+    <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div class="flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0c4da2] text-amber-300 shadow-sm ring-1 ring-amber-400/50">
+          <svg class="h-6 w-6" viewBox="0 0 100 108" aria-hidden="true">
+            <path d="M23 12 C35 7, 55 9, 71 11 C80 12, 85 8, 89 12 L89 24 C83 22, 78 25, 75 30 L75 84 C75 91, 69 96, 61 96 L22 96 C14 96, 10 91, 10 83 L10 72 C16 74, 21 70, 22 64 L22 22 C22 17, 22 14, 23 12 Z" fill="#0c4da2" stroke="#f2b705" stroke-width="4" stroke-linejoin="round" />
+            <path d="M35 37 C31 44, 30 53, 32 62 C33 67, 36 70, 41 71 L41 66 C38 65, 36 62, 35 58 C34 51, 35 44, 38 38 Z" fill="#f7c61b" />
+            <path d="M61 37 C65 44, 66 53, 64 62 C63 67, 60 70, 55 71 L55 66 C58 65, 60 62, 61 58 C62 51, 61 44, 58 38 Z" fill="#f7c61b" />
+            <path d="M48 20 C44 27, 42 36, 42 46 C42 55, 44 63, 46.5 69 L49.5 69 C52 63, 54 55, 54 46 C54 36, 52 27, 48 20 Z" fill="#f9cf2e" />
+            <path d="M39 84 C39 78.5, 43 75, 48 75 C53 75, 57 78.5, 57 84 C57 86.2, 55.3 87.5, 52.5 87.5 L43.5 87.5 C40.7 87.5, 39 86.2, 39 84 Z" fill="#f9cf2e" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            Ордер НААУ • by Bandera
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Заповнення, підписи, чернетка JSON та експорт А4
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" id="btn-save-json" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
+          Зберегти (.json)
+        </button>
+        <label for="inp-load-json" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
+          Відкрити (.json)
+        </label>
+        <input id="inp-load-json" type="file" accept=".json,application/json" class="hidden" />
+        <button type="button" id="btn-clear-fields" class="rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition cursor-pointer">
+          Очистити
+        </button>
+        <button type="button" id="btn-export-png" class="rounded-xl bg-[#0c4da2] hover:bg-[#093d82] text-white px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer flex items-center gap-1.5">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+          </svg>
+          <span>PNG</span>
+        </button>
+        <button type="button" id="btn-print-pdf" class="rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm transition cursor-pointer flex items-center gap-1.5">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          <span>PDF</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="print-only-container mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:grid-cols-12 lg:items-start">
+
+    <aside class="no-print lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-sm space-y-3.5">
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+          Дані ордера
+        </h2>
+        <button type="button" id="btn-fill-sample" class="text-xs font-medium text-[#0c4da2] dark:text-sky-400 hover:underline cursor-pointer">
+          Заповнити приклад
+        </button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="inp-series" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Серія</label>
+          <input id="inp-series" type="text" data-bind="series" value="АА" maxlength="12" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm font-medium focus:border-[#0c4da2] focus:outline-none" />
+        </div>
+        <div>
+          <label for="inp-number" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">Номер ордера</label>
+          <input id="inp-number" type="text" data-bind="number" value="000001" maxlength="20" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm font-medium focus:border-[#0c4da2] focus:outline-none" />
+        </div>
+      </div>
+
+      <div>
+        <label for="inp-client" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+          Особа, якій надається допомога (ПІБ / назва)
+        </label>
+        <input id="inp-client" type="text" data-bind="client" maxlength="140" placeholder="ПІБ або найменування особи" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm focus:border-[#0c4da2] focus:outline-none" />
+      </div>
+
+      <div>
+        <label for="inp-organ" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+          У (назва суду або органу)
+        </label>
+        <input id="inp-organ" type="text" data-bind="organ" maxlength="140" placeholder="Назва суду або державного органу" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm focus:border-[#0c4da2] focus:outline-none" />
+      </div>
+
+      <div>
+        <label for="inp-lawyer" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+          Адвокат (ПІБ)
+        </label>
+        <input id="inp-lawyer" type="text" data-bind="lawyer" maxlength="140" placeholder="ПІБ адвоката" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm focus:border-[#0c4da2] focus:outline-none" />
+      </div>
+
+      <div class="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-2.5">
+        <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">Свідоцтво та рішення ради адвокатів</div>
+        <div class="grid grid-cols-4 gap-2">
+          <div>
+            <label for="inp-cert-num" class="block text-[11px] text-slate-500 mb-0.5">№ свідоцтва</label>
+            <input id="inp-cert-num" type="text" data-bind="certNum" maxlength="20" placeholder="______" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-cert-day" class="block text-[11px] text-slate-500 mb-0.5">День</label>
+            <input id="inp-cert-day" type="text" data-bind="certDay" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-cert-month" class="block text-[11px] text-slate-500 mb-0.5">Місяць</label>
+            <input id="inp-cert-month" type="text" data-bind="certMonth" maxlength="20" placeholder="____" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-cert-year" class="block text-[11px] text-slate-500 mb-0.5">Рік (20__)</label>
+            <input id="inp-cert-year" type="text" data-bind="certYear" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label for="inp-cert-issuer" class="block text-[11px] text-slate-500 mb-0.5">Ким видане свідоцтво</label>
+          <input id="inp-cert-issuer" type="text" data-bind="certIssuer" maxlength="100" placeholder="Наприклад: Радою адвокатів області" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+        </div>
+
+        <div class="grid grid-cols-4 gap-2">
+          <div>
+            <label for="inp-dec-num" class="block text-[11px] text-slate-500 mb-0.5">№ рішення</label>
+            <input id="inp-dec-num" type="text" data-bind="decNum" maxlength="20" placeholder="____" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-dec-day" class="block text-[11px] text-slate-500 mb-0.5">День</label>
+            <input id="inp-dec-day" type="text" data-bind="decDay" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-dec-month" class="block text-[11px] text-slate-500 mb-0.5">Місяць</label>
+            <input id="inp-dec-month" type="text" data-bind="decMonth" maxlength="20" placeholder="____" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-dec-year" class="block text-[11px] text-slate-500 mb-0.5">Рік (20__)</label>
+            <input id="inp-dec-year" type="text" data-bind="decYear" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-2">
+        <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">Посвідчення адвоката</div>
+        <div class="grid grid-cols-4 gap-2">
+          <div>
+            <label for="inp-id-num" class="block text-[11px] text-slate-500 mb-0.5">№ посвідч.</label>
+            <input id="inp-id-num" type="text" data-bind="idNum" maxlength="20" placeholder="______" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-id-day" class="block text-[11px] text-slate-500 mb-0.5">День</label>
+            <input id="inp-id-day" type="text" data-bind="idDay" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-id-month" class="block text-[11px] text-slate-500 mb-0.5">Місяць</label>
+            <input id="inp-id-month" type="text" data-bind="idMonth" maxlength="20" placeholder="____" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-id-year" class="block text-[11px] text-slate-500 mb-0.5">Рік (20__)</label>
+            <input id="inp-id-year" type="text" data-bind="idYear" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+        </div>
+        <div>
+          <label for="inp-id-issuer" class="block text-[11px] text-slate-500 mb-0.5">Орган, що видав посвідчення</label>
+          <input id="inp-id-issuer" type="text" data-bind="idIssuer" value="Рада адвокатів України" maxlength="120" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+        </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-2.5">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Виданий:</span>
+          <div class="inline-flex rounded-lg bg-slate-200/80 dark:bg-slate-700 p-0.5 text-xs">
+            <button type="button" id="mode-individual" class="rounded-md bg-white dark:bg-slate-900 px-2.5 py-1 font-semibold text-slate-900 dark:text-white shadow-sm cursor-pointer">
+              Індивідуально
+            </button>
+            <button type="button" id="mode-firm" class="rounded-md px-2.5 py-1 font-medium text-slate-600 dark:text-slate-300 cursor-pointer">
+              Об'єднання / бюро
+            </button>
+          </div>
+        </div>
+
+        <div id="panel-individual">
+          <label for="inp-ind-address" class="block text-[11px] text-slate-500 mb-0.5">Адреса робочого місця адвоката</label>
+          <input id="inp-ind-address" type="text" data-bind="indAddress" maxlength="140" placeholder="Адреса робочого місця" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+        </div>
+
+        <div id="panel-firm" class="space-y-2 hidden">
+          <div>
+            <label for="inp-firm-name" class="block text-[11px] text-slate-500 mb-0.5">Найменування адвокатського бюро/об'єднання</label>
+            <input id="inp-firm-name" type="text" data-bind="firmName" maxlength="140" placeholder="Повне найменування бюро/об'єднання" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-firm-work-address" class="block text-[11px] text-slate-500 mb-0.5">Адреса робочого місця адвоката (за потреби)</label>
+            <input id="inp-firm-work-address" type="text" data-bind="firmWorkAddress" maxlength="140" placeholder="Якщо відрізняється" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label for="inp-limits" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+          Обмеження повноважень
+        </label>
+        <input id="inp-limits" type="text" data-bind="limits" value="Обмеження відсутні" maxlength="140" class="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-sm focus:border-[#0c4da2] focus:outline-none" />
+      </div>
+
+      <div class="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-3 space-y-3">
+        <div class="text-xs font-semibold text-slate-700 dark:text-slate-300">Дата та підписи</div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label for="inp-sign-day" class="block text-[11px] text-slate-500 mb-0.5">День</label>
+            <input id="inp-sign-day" type="text" data-bind="signDay" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-sign-month" class="block text-[11px] text-slate-500 mb-0.5">Місяць</label>
+            <input id="inp-sign-month" type="text" data-bind="signMonth" maxlength="20" placeholder="____" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+          <div>
+            <label for="inp-sign-year" class="block text-[11px] text-slate-500 mb-0.5">Рік (20__)</label>
+            <input id="inp-sign-year" type="text" data-bind="signYear" maxlength="4" placeholder="__" class="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">Підпис адвоката</span>
+            <div class="flex items-center gap-1.5 text-[11px]">
+              <label for="inp-lawyer-sig-file" class="rounded-md border border-slate-300 dark:border-slate-700 px-2 py-0.5 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                PNG / JPG
+              </label>
+              <input id="inp-lawyer-sig-file" type="file" accept="image/png,image/jpeg" class="hidden" />
+              <button type="button" id="btn-clear-lawyer-sig" class="rounded-md px-2 py-0.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer">
+                Очистити
+              </button>
+            </div>
+          </div>
+          <canvas id="canvas-lawyer-sig" class="sig-pad-canvas"></canvas>
+          <input id="inp-lawyer-sign" type="text" data-bind="lawyerSign" maxlength="60" placeholder="Або введіть текстовий підпис / ініціали" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+        </div>
+
+        <div class="rounded-xl border border-amber-300/80 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 p-2.5 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold text-slate-800 dark:text-amber-200">Підпис начальника / заступника начальник НААУ</span>
+            <div class="flex items-center gap-1.5 text-[11px]">
+              <label for="inp-head-sig-file" class="rounded-md border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-2 py-0.5 text-slate-700 dark:text-slate-200 hover:bg-amber-50 cursor-pointer">
+                PNG / JPG
+              </label>
+              <input id="inp-head-sig-file" type="file" accept="image/png,image/jpeg" class="hidden" />
+              <button type="button" id="btn-clear-head-sig" class="rounded-md px-2 py-0.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer">
+                Очистити
+              </button>
+            </div>
+          </div>
+          <canvas id="canvas-head-sig" class="sig-pad-canvas"></canvas>
+          <input id="inp-head-sign" type="text" data-bind="headSign" maxlength="60" placeholder="Або введіть текстовий підпис / ініціали" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs focus:border-[#0c4da2] focus:outline-none" />
+        </div>
+      </div>
+    </aside>
+
+    <section class="lg:col-span-7 flex flex-col items-center w-full">
+      <div class="no-print mb-2.5 flex w-full max-w-[794px] items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span>А4 (210 × 297 мм) • 1 сторінка</span>
+        <span>Клікніть по рядку на бланку для вводу</span>
+      </div>
+
+      <div id="sheet-viewport" class="sheet-viewport">
+        <div id="sheet-scale-box" class="sheet-scale-box">
+          <div id="order-sheet" class="order-sheet">
+            <svg class="sheet-vector-backdrop" viewBox="0 0 794 1123" width="794" height="1123" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <pattern id="mesh-pattern" width="12" height="12" patternUnits="userSpaceOnUse">
+                  <path d="M 6 0 L 6 12 M 12 0 L 12 12 M 0 6 L 12 6 M 0 12 L 12 12" fill="none" stroke="rgba(78, 166, 173, 0.25)" stroke-width="0.75" />
+                  <path d="M 0 12 L 12 0 M 0 0 L 12 12" fill="none" stroke="rgba(212, 172, 86, 0.14)" stroke-width="0.6" />
+                </pattern>
+
+                <g id="naau-emblem-shape">
+                  <path d="M23 12 C35 7, 55 9, 71 11 C80 12, 85 8, 89 12 L89 24 C83 22, 78 25, 75 30 L75 84 C75 91, 69 96, 61 96 L22 96 C14 96, 10 91, 10 83 L10 72 C16 74, 21 70, 22 64 L22 22 C22 17, 22 14, 23 12 Z" fill="#0c4da2" stroke="#f2b705" stroke-width="4" stroke-linejoin="round" />
+                  <path d="M35 37 C31 44, 30 53, 32 62 C33 67, 36 70, 41 71 L41 66 C38 65, 36 62, 35 58 C34 51, 35 44, 38 38 Z" fill="#f7c61b" />
+                  <path d="M61 37 C65 44, 66 53, 64 62 C63 67, 60 70, 55 71 L55 66 C58 65, 60 62, 61 58 C62 51, 61 44, 58 38 Z" fill="#f7c61b" />
+                  <path d="M48 20 C44 27, 42 36, 42 46 C42 55, 44 63, 46.5 69 L49.5 69 C52 63, 54 55, 54 46 C54 36, 52 27, 48 20 Z" fill="#f9cf2e" />
+                  <path d="M39 84 C39 78.5, 43 75, 48 75 C53 75, 57 78.5, 57 84 C57 86.2, 55.3 87.5, 52.5 87.5 L43.5 87.5 C40.7 87.5, 39 86.2, 39 84 Z" fill="#f9cf2e" />
+                </g>
+
+                <g id="rosette-motif">
+                  <path d="M 0 155 C 78 155, 155 78, 155 0" fill="none" stroke="rgba(212, 172, 86, 0.35)" stroke-width="6" />
+                  <path d="M 0 132 C 66 132, 132 66, 132 0" fill="none" stroke="rgba(78, 166, 173, 0.35)" stroke-width="5" />
+                  <path d="M 0 108 C 54 108, 108 54, 108 0" fill="none" stroke="rgba(212, 172, 86, 0.28)" stroke-width="3.5" />
+                  <circle cx="0" cy="0" r="82" fill="none" stroke="rgba(78, 166, 173, 0.22)" stroke-width="1.2" stroke-dasharray="4 3" />
+                  <circle cx="0" cy="0" r="56" fill="none" stroke="rgba(212, 172, 86, 0.28)" stroke-width="1.2" />
+                </g>
+              </defs>
+
+              <rect width="794" height="1123" fill="#fbfaf4" />
+              <rect width="794" height="1123" fill="url(#mesh-pattern)" />
+
+              <use href="#rosette-motif" x="0" y="0" />
+              <use href="#rosette-motif" x="794" y="0" transform="translate(794, 0) scale(-1, 1)" />
+
+              <g transform="translate(227, 382) scale(3.4) rotate(-6)" opacity="0.13">
+                <use href="#naau-emblem-shape" />
+              </g>
+
+              <path d="M 0 988 C 190 952, 385 1036, 585 982 C 665 960, 735 968, 794 985 L 794 1123 L 0 1123 Z" fill="rgba(78, 166, 173, 0.16)" />
+              <path d="M 0 1018 C 215 992, 415 1066, 615 1010 C 685 990, 745 1002, 794 1016 L 794 1123 L 0 1123 Z" fill="rgba(212, 172, 86, 0.22)" />
+              <path d="M 0 1046 C 235 1032, 445 1094, 645 1036 C 705 1018, 755 1028, 794 1042 L 794 1123 L 0 1123 Z" fill="rgba(23, 58, 115, 0.11)" />
+            </svg>
+
+            <div class="order-sheet-content">
+              <div>
+                <div class="sheet-header-row">
+                  <div class="sheet-series">
+                    Серія <span id="sheet-series" class="editable-slot" contenteditable="true" data-bind="series">АА</span>
+                  </div>
+                  <div class="sheet-emblem">
+                    <svg viewBox="0 0 100 108" width="58" height="63" aria-hidden="true">
+                      <use href="#naau-emblem-shape" />
+                    </svg>
+                  </div>
+                  <div class="sheet-number">
+                    № <span id="sheet-number" class="editable-slot" contenteditable="true" data-bind="number">000001</span>
+                  </div>
+                </div>
+
+                <div class="sheet-org-title">
+                  НАЦІОНАЛЬНА АСОЦІАЦІЯ<br />АДВОКАТІВ УКРАЇНИ
+                </div>
+                <div class="sheet-main-title">ОРДЕР</div>
+                <div class="sheet-sub-title">НА НАДАННЯ ПРАВНИЧОЇ ДОПОМОГИ</div>
+              </div>
+
+              <div class="sheet-body">
+                <div class="sheet-section">
+                  <span id="sheet-client" class="fill-line editable-slot" contenteditable="true" data-bind="client"></span>
+                  <div class="caption-text">(прізвище, ім'я, по батькові або найменування особи, якій надається правнича допомога)</div>
+                </div>
+
+                <div class="sheet-section text-center">
+                  <div class="font-bold text-[13.5px]">на підставі:</div>
+                  <div class="font-semibold text-[13.5px] mt-0.5">договору про надання правничої допомоги</div>
+                </div>
+
+                <div class="sheet-section">
+                  <div class="organ-flex-row">
+                    <span class="font-bold">у</span>
+                    <span id="sheet-organ" class="fill-line editable-slot" contenteditable="true" data-bind="organ"></span>
+                  </div>
+                  <div class="caption-text">(назва органу, у якому надається правнича допомога)</div>
+                </div>
+
+                <div class="sheet-section mt-3">
+                  <div class="text-center font-bold mb-1">Адвокат</div>
+                  <span id="sheet-lawyer" class="fill-line editable-slot" contenteditable="true" data-bind="lawyer"></span>
+                  <div class="caption-text">(прізвище, ім'я, по батькові адвоката, який надає правничу допомогу)</div>
+                </div>
+
+                <div class="sheet-section mt-2">
+                  <div>
+                    Свідоцтво про право на заняття адвокатською діяльністю №
+                    <span id="sheet-cert-num" class="inline-blank w-md editable-slot" contenteditable="true" data-bind="certNum"></span>
+                    від «<span id="sheet-cert-day" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="certDay"></span>»
+                    <span id="sheet-cert-month" class="inline-blank w-md editable-slot" contenteditable="true" data-bind="certMonth"></span>
+                    20<span id="sheet-cert-year" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="certYear"></span> р.
+                  </div>
+                  <div class="organ-flex-row mt-1.5">
+                    <span>видане</span>
+                    <span id="sheet-cert-issuer" class="fill-line editable-slot" contenteditable="true" data-bind="certIssuer"></span>
+                    <span>на підставі</span>
+                  </div>
+                  <div class="caption-text">(назва органу, що видав свідоцтво про право на заняття адвокатською діяльністю)</div>
+                  <div class="mt-1.5">
+                    рішення №
+                    <span id="sheet-dec-num" class="inline-blank w-md editable-slot" contenteditable="true" data-bind="decNum"></span>
+                    від «<span id="sheet-dec-day" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="decDay"></span>»
+                    <span id="sheet-dec-month" class="inline-blank w-md editable-slot" contenteditable="true" data-bind="decMonth"></span>
+                    20<span id="sheet-dec-year" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="decYear"></span> р.
+                  </div>
+                </div>
+
+                <div class="sheet-section mt-2">
+                  <div>
+                    Посвідчення адвоката №
+                    <span id="sheet-id-num" class="inline-blank w-md editable-slot" contenteditable="true" data-bind="idNum"></span>
+                    видане «<span id="sheet-id-day" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="idDay"></span>»
+                    <span id="sheet-id-month" class="inline-blank w-md editable-slot" contenteditable="true" data-bind="idMonth"></span>
+                    20<span id="sheet-id-year" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="idYear"></span> р.
+                  </div>
+                  <div class="mt-1.5">
+                    <span id="sheet-id-issuer" class="fill-line editable-slot" contenteditable="true" data-bind="idIssuer">Рада адвокатів України</span>
+                  </div>
+                  <div class="caption-text">(назва органу, що видав посвідчення)</div>
+                </div>
+
+                <div class="sheet-section mt-2.5">
+                  <div class="text-center font-bold mb-1">виданий (обрати необхідне):</div>
+
+                  <div id="sheet-block-individual">
+                    <div class="text-center font-semibold">
+                      Адвокатом, що здійснює адвокатську діяльність індивідуально:
+                    </div>
+                    <span id="sheet-ind-address" class="fill-line editable-slot mt-1" contenteditable="true" data-bind="indAddress"></span>
+                    <div class="caption-text">(адреса робочого місця адвоката)</div>
+                  </div>
+
+                  <div id="sheet-block-firm" class="mt-1.5">
+                    <div class="text-center font-semibold">
+                      Адвокатським об'єднанням/бюро:
+                    </div>
+                    <span id="sheet-firm-name" class="fill-line editable-slot mt-1" contenteditable="true" data-bind="firmName"></span>
+                    <div class="caption-text">(повне найменування адвокатського бюро/об'єднання, що видає ордер)</div>
+
+                    <span id="sheet-firm-work-address" class="fill-line editable-slot mt-2" contenteditable="true" data-bind="firmWorkAddress"></span>
+                    <div class="caption-text">(адреса робочого місця адвоката у випадку, якщо вона відрізняється від адреси місцезнаходження адвокатського бюро/об'єднання, що видає ордер)</div>
+                  </div>
+                </div>
+
+                <div class="sheet-section mt-2.5">
+                  <div class="text-center">
+                    Обмеження повноважень адвоката згідно договору про надання правової допомоги:
+                  </div>
+                  <span id="sheet-limits" class="fill-line editable-slot mt-1" contenteditable="true" data-bind="limits">Обмеження відсутні</span>
+                </div>
+              </div>
+
+              <div class="sheet-footer">
+                <div class="footer-row">
+                  <div>
+                    «<span id="sheet-sign-day" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="signDay"></span>»
+                    <span id="sheet-sign-month" class="inline-blank w-lg editable-slot" contenteditable="true" data-bind="signMonth"></span>
+                    20<span id="sheet-sign-year" class="inline-blank w-sm editable-slot" contenteditable="true" data-bind="signYear"></span> р.
+                  </div>
+
+                  <div class="flex items-end gap-3">
+                    <span class="font-bold">Адвокат:</span>
+                    <div class="sig-box-wrap">
+                      <div class="sig-visual-slot">
+                        <img id="sheet-lawyer-sig-img" class="sig-visual-img hidden" alt="Підпис адвоката" />
+                        <span id="sheet-lawyer-sig-text" class="sig-visual-text editable-slot" contenteditable="true" data-bind="lawyerSign"></span>
+                      </div>
+                      <div class="caption-text">(Підпис адвоката)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="footer-row">
+                  <div>
+                    <div class="font-bold">Начальник / заступник начальника НААУ:</div>
+                    <div class="caption-text text-left">(у випадку, якщо ордер видається державим адвокатом)</div>
+                  </div>
+
+                  <div class="sig-box-wrap">
+                    <div class="sig-visual-slot">
+                      <img id="sheet-head-sig-img" class="sig-visual-img hidden" alt="Підпис керівника" />
+                      <span id="sheet-head-sig-text" class="sig-visual-text editable-slot" contenteditable="true" data-bind="headSign"></span>
+                    </div>
+                    <div class="caption-text">(Підпис керівника)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const A4_WIDTH = 794;
+      const A4_HEIGHT = 1123;
+      const MAX_SIG_DATA_URL_LENGTH = 700000;
+      const ALLOWED_IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/jpg'];
+
+      const state = {
+        fields: {
+          series: 'АА',
+          number: '000001',
+          client: '',
+          organ: '',
+          lawyer: '',
+          certNum: '',
+          certDay: '',
+          certMonth: '',
+          certYear: '',
+          certIssuer: '',
+          decNum: '',
+          decDay: '',
+          decMonth: '',
+          decYear: '',
+          idNum: '',
+          idDay: '',
+          idMonth: '',
+          idYear: '',
+          idIssuer: 'Національна асоціація адвокатів україни ',
+          indAddress: '',
+          firmName: '',
+          firmWorkAddress: '',
+          limits: 'Обмеження відсутні',
+          signDay: '',
+          signMonth: '',
+          signYear: '',
+          lawyerSign: '',
+          headSign: ''
+        },
+        mode: 'individual',
+        lawyerSigImage: null,
+        headSigImage: null
+      };
+
+      const toastBanner = document.getElementById('toast-banner');
+      const toastMessage = document.getElementById('toast-message');
+      const toastDot = document.getElementById('toast-dot');
+      let toastTimer = null;
+
+      function showToast(msg, isError = false) {
+        if (!toastBanner || !toastMessage || !toastDot) return;
+        toastMessage.textContent = msg;
+        toastDot.className = 'inline-block h-2.5 w-2.5 rounded-full ' + (isError ? 'bg-rose-400' : 'bg-emerald-400');
+        toastBanner.classList.remove('hidden');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+          toastBanner.classList.add('hidden');
+        }, 3200);
+      }
+
+      function sanitizeText(val, maxLen = 140) {
+        if (typeof val !== 'string') return '';
+        return val.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLen);
+      }
+
+      function getBoundElements(key) {
+        const inputs = Array.from(document.querySelectorAll('input[data-bind="' + key + '"]'));
+        const sheets = Array.from(document.querySelectorAll('[contenteditable][data-bind="' + key + '"]'));
+        return { inputs, sheets };
+      }
+
+      function syncKeyToDOM(key, value, skipEl = null) {
+        const clean = sanitizeText(value, 160);
+        state.fields[key] = clean;
+        const { inputs, sheets } = getBoundElements(key);
+
+        inputs.forEach((inp) => {
+          if (inp !== skipEl && inp.value !== clean) {
+            inp.value = clean;
+          }
+        });
+
+        sheets.forEach((el) => {
+          if (el !== skipEl && el.textContent !== clean) {
+            el.textContent = clean;
+          }
+        });
+      }
+
+      function applyMode(mode) {
+        state.mode = mode === 'firm' ? 'firm' : 'individual';
+        const btnInd = document.getElementById('mode-individual');
+        const btnFirm = document.getElementById('mode-firm');
+        const panelInd = document.getElementById('panel-individual');
+        const panelFirm = document.getElementById('panel-firm');
+
+        if (state.mode === 'individual') {
+          btnInd.className = 'rounded-md bg-white dark:bg-slate-900 px-2.5 py-1 font-semibold text-slate-900 dark:text-white shadow-sm cursor-pointer';
+          btnFirm.className = 'rounded-md px-2.5 py-1 font-medium text-slate-600 dark:text-slate-300 cursor-pointer';
+          panelInd.classList.remove('hidden');
+          panelFirm.classList.add('hidden');
+        } else {
+          btnFirm.className = 'rounded-md bg-white dark:bg-slate-900 px-2.5 py-1 font-semibold text-slate-900 dark:text-white shadow-sm cursor-pointer';
+          btnInd.className = 'rounded-md px-2.5 py-1 font-medium text-slate-600 dark:text-slate-300 cursor-pointer';
+          panelFirm.classList.remove('hidden');
+          panelInd.classList.add('hidden');
+        }
+      }
+
+      function createSignaturePad(canvasId, stateKey, imgElId, textElId) {
+        const canvas = document.getElementById(canvasId);
+        const imgEl = document.getElementById(imgElId);
+        const textEl = document.getElementById(textElId);
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        let lastPt = null;
+
+        function resizeCanvasPreserve() {
+          const rect = canvas.getBoundingClientRect();
+          const w = Math.max(200, Math.round(rect.width || 320));
+          const h = Math.max(70, Math.round(rect.height || 84));
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+          let prevData = null;
+          if (canvas.width > 0 && canvas.height > 0) {
+            const tmp = document.createElement('canvas');
+            tmp.width = canvas.width;
+            tmp.height = canvas.height;
+            tmp.getContext('2d').drawImage(canvas, 0, 0);
+            prevData = tmp;
+          }
+
+          canvas.width = w * dpr;
+          canvas.height = h * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = '#0f1e46';
+          ctx.lineWidth = 2.2;
+
+          if (prevData) {
+            ctx.drawImage(prevData, 0, 0, prevData.width / dpr, prevData.height / dpr);
+          }
+        }
+
+        function getPoint(e) {
+          const rect = canvas.getBoundingClientRect();
+          return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          };
+        }
+
+        function syncSignatureVisual() {
+          const hasDrawn = state[stateKey] && typeof state[stateKey] === 'string' && state[stateKey].startsWith('data:image/');
+          const hasText = Boolean(state.fields[stateKey === 'lawyerSigImage' ? 'lawyerSign' : 'headSign']);
+
+          if (hasDrawn) {
+            imgEl.src = state[stateKey];
+            imgEl.classList.remove('hidden');
+            textEl.classList.add('hidden');
+          } else {
+            imgEl.removeAttribute('src');
+            imgEl.classList.add('hidden');
+            textEl.classList.remove('hidden');
+            if (!hasText) {
+              textEl.textContent = '';
+            }
+          }
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          canvas.setPointerCapture(e.pointerId);
+          drawing = true;
+          lastPt = getPoint(e);
+          ctx.beginPath();
+          ctx.moveTo(lastPt.x, lastPt.y);
+          ctx.lineTo(lastPt.x + 0.1, lastPt.y + 0.1);
+          ctx.stroke();
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+          if (!drawing) return;
+          e.preventDefault();
+          const pt = getPoint(e);
+          ctx.beginPath();
+          ctx.moveTo(lastPt.x, lastPt.y);
+          ctx.lineTo(pt.x, pt.y);
+          ctx.stroke();
+          lastPt = pt;
+        });
+
+        function finishStroke(e) {
+          if (!drawing) return;
+          drawing = false;
+          lastPt = null;
+          if (e && e.pointerId !== undefined && canvas.hasPointerCapture(e.pointerId)) {
+            canvas.releasePointerCapture(e.pointerId);
+          }
+          state[stateKey] = canvas.toDataURL('image/png');
+          syncSignatureVisual();
+        }
+
+        canvas.addEventListener('pointerup', finishStroke);
+        canvas.addEventListener('pointercancel', finishStroke);
+
+        function clearPad() {
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.restore();
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.strokeStyle = '#0f1e46';
+          ctx.lineWidth = 2.2;
+          state[stateKey] = null;
+          syncSignatureVisual();
+        }
+
+        function setFromSafeDataUrl(dataUrl) {
+          const img = new Image();
+          img.onload = () => {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+            clearPad();
+            const ratio = Math.min((w - 16) / img.width, (h - 12) / img.height, 1);
+            const drawW = img.width * ratio;
+            const drawH = img.height * ratio;
+            const dx = (w - drawW) / 2;
+            const dy = (h - drawH) / 2;
+            ctx.drawImage(img, dx, dy, drawW, drawH);
+            state[stateKey] = canvas.toDataURL('image/png');
+            syncSignatureVisual();
+          };
+          img.onerror = () => {
+            showToast('Не вдалося завантажити зображення підпису', true);
+          };
+          img.src = dataUrl;
+        }
+
+        resizeCanvasPreserve();
+        window.addEventListener('resize', resizeCanvasPreserve);
+
+        return {
+          clearPad,
+          setFromSafeDataUrl,
+          syncSignatureVisual
+        };
+      }
+
+      const lawyerSigPad = createSignaturePad('canvas-lawyer-sig', 'lawyerSigImage', 'sheet-lawyer-sig-img', 'sheet-lawyer-sig-text');
+      const headSigPad = createSignaturePad('canvas-head-sig', 'headSigImage', 'sheet-head-sig-img', 'sheet-head-sig-text');
+
+      function handleSigImageUpload(fileInput, padController) {
+        fileInput.addEventListener('change', (e) => {
+          const file = e.target.files && e.target.files[0];
+          fileInput.value = '';
+          if (!file) return;
+          if (!ALLOWED_IMAGE_MIMES.includes(file.type)) {
+            showToast('Дозволено лише PNG або JPG', true);
+            return;
+          }
+          if (file.size > 600 * 1024) {
+            showToast('Файл підпису має бути до 600 КБ', true);
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) {
+              padController.setFromSafeDataUrl(reader.result);
+              showToast('Підпис додано');
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      handleSigImageUpload(document.getElementById('inp-lawyer-sig-file'), lawyerSigPad);
+      handleSigImageUpload(document.getElementById('inp-head-sig-file'), headSigPad);
+
+      document.getElementById('btn-clear-lawyer-sig').addEventListener('click', () => {
+        lawyerSigPad.clearPad();
+        syncKeyToDOM('lawyerSign', '');
+      });
+
+      document.getElementById('btn-clear-head-sig').addEventListener('click', () => {
+        headSigPad.clearPad();
+        syncKeyToDOM('headSign', '');
+      });
+
+      document.getElementById('mode-individual').addEventListener('click', () => applyMode('individual'));
+      document.getElementById('mode-firm').addEventListener('click', () => applyMode('firm'));
+
+      Object.keys(state.fields).forEach((key) => {
+        const { inputs, sheets } = getBoundElements(key);
+        inputs.forEach((inp) => {
+          inp.addEventListener('input', () => {
+            syncKeyToDOM(key, inp.value, inp);
+            if (key === 'lawyerSign') lawyerSigPad.syncSignatureVisual();
+            if (key === 'headSign') headSigPad.syncSignatureVisual();
+          });
+        });
+        sheets.forEach((el) => {
+          el.addEventListener('input', () => {
+            syncKeyToDOM(key, el.textContent, el);
+            if (key === 'lawyerSign') lawyerSigPad.syncSignatureVisual();
+            if (key === 'headSign') headSigPad.syncSignatureVisual();
+          });
+          el.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              el.blur();
+            }
+          });
+        });
+      });
+
+      function initializeFromInputs() {
+        Object.keys(state.fields).forEach((key) => {
+          const { inputs } = getBoundElements(key);
+          const initialVal = inputs.length > 0 ? inputs[0].value : state.fields[key];
+          syncKeyToDOM(key, initialVal);
+        });
+        applyMode(state.mode);
+        lawyerSigPad.syncSignatureVisual();
+        headSigPad.syncSignatureVisual();
+      }
+
+      function updateSheetScale() {
+        const viewport = document.getElementById('sheet-viewport');
+        const scaleBox = document.getElementById('sheet-scale-box');
+        if (!viewport || !scaleBox) return;
+
+        const availW = viewport.clientWidth || window.innerWidth;
+        const scale = Math.min(1, availW / A4_WIDTH);
+        scaleBox.style.transform = 'scale(' + scale + ')';
+        scaleBox.style.height = (A4_HEIGHT * scale) + 'px';
+        viewport.style.height = (A4_HEIGHT * scale) + 'px';
+      }
+
+      window.addEventListener('resize', updateSheetScale);
+
+      document.getElementById('btn-fill-sample').addEventListener('click', () => {
+        const sample = {
+          series: 'АА',
+          number: '00012',
+          client: 'Івасик Телесик',
+          organ: 'ГУ Національної поліції міста Київа',
+          lawyer: 'Артемій Бандера',
+          certNum: '329192',
+          certDay: '24',
+          certMonth: 'жовтня',
+          certYear: '22',
+          certIssuer: 'Національною асоціацією адвокатів україни',
+          decNum: '48',
+          decDay: '24',
+          decMonth: 'жовтня',
+          decYear: '22',
+          idNum: '134747',
+          idDay: '11',
+          idMonth: 'жовтня',
+          idYear: '22',
+          idIssuer: 'Національна асоіація адвокатів україни',
+          indAddress: 'м. Київ, вул. Банкова, 1/20',
+          firmName: '',
+          firmWorkAddress: '',
+          limits: 'Обмеження відсутні',
+          signDay: '24',
+          signMonth: 'листопада',
+          signYear: '26',
+          lawyerSign: 'Bandera inc',
+          headSign: ''
+        };
+        Object.entries(sample).forEach(([k, v]) => syncKeyToDOM(k, v));
+        applyMode('individual');
+        lawyerSigPad.syncSignatureVisual();
+        headSigPad.syncSignatureVisual();
+        showToast('Заповнено приклад');
+      });
+
+      document.getElementById('btn-clear-fields').addEventListener('click', () => {
+        Object.keys(state.fields).forEach((k) => {
+          if (k === 'series') syncKeyToDOM(k, 'АА');
+          else if (k === 'number') syncKeyToDOM(k, '000001');
+          else if (k === 'idIssuer') syncKeyToDOM(k, 'Національна адвокатів України');
+          else if (k === 'limits') syncKeyToDOM(k, 'Обмеження відсутні');
+          else syncKeyToDOM(k, '');
+        });
+        lawyerSigPad.clearPad();
+        headSigPad.clearPad();
+        applyMode('individual');
+        showToast('Поля очищено');
+      });
+
+      document.getElementById('btn-save-json').addEventListener('click', () => {
+        const payload = {
+          version: 1,
+          mode: state.mode,
+          fields: { ...state.fields },
+          lawyerSigImage: state.lawyerSigImage,
+          headSigImage: state.headSigImage
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeNum = (state.fields.number || 'draft').replace(/[^a-zA-Z0-9_-]/g, '');
+        a.href = url;
+        a.download = 'Order_NAAU_' + (state.fields.series || 'AA') + '_' + safeNum + '.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('Чернетку збережено у .json');
+      });
+
+      function isSafeImageDataUrl(val) {
+        if (typeof val !== 'string') return false;
+        if (val.length === 0 || val.length > MAX_SIG_DATA_URL_LENGTH) return false;
+        return /^data:image\/(png|jpeg|jpg);base64,[A-Za-z0-9+/=]+$/.test(val);
+      }
+
+      document.getElementById('inp-load-json').addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if (!file) return;
+        if (file.size > 1500 * 1024) {
+          showToast('Файл чернетки завеликий', true);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const parsed = JSON.parse(String(reader.result || ''));
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+              throw new Error('Invalid structure');
+            }
+            const incomingFields = parsed.fields && typeof parsed.fields === 'object' ? parsed.fields : {};
+            Object.keys(state.fields).forEach((key) => {
+              if (Object.prototype.hasOwnProperty.call(incomingFields, key)) {
+                syncKeyToDOM(key, incomingFields[key]);
+              }
+            });
+            applyMode(parsed.mode === 'firm' ? 'firm' : 'individual');
+
+            if (isSafeImageDataUrl(parsed.lawyerSigImage)) {
+              lawyerSigPad.setFromSafeDataUrl(parsed.lawyerSigImage);
+            } else {
+              lawyerSigPad.clearPad();
+            }
+
+            if (isSafeImageDataUrl(parsed.headSigImage)) {
+              headSigPad.setFromSafeDataUrl(parsed.headSigImage);
+            } else {
+              headSigPad.clearPad();
+            }
+
+            lawyerSigPad.syncSignatureVisual();
+            headSigPad.syncSignatureVisual();
+            showToast('Чернетку завантажено');
+          } catch (_) {
+            showToast('Некоректний файл .json', true);
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      document.getElementById('btn-print-pdf').addEventListener('click', () => {
+        updateSheetScale();
+        window.print();
+      });
+
+      document.getElementById('btn-export-png').addEventListener('click', async () => {
+        if (typeof html2canvas !== 'function') {
+          showToast('Бібліотека експорту PNG не завантажилась', true);
+          return;
+        }
+        const sheetEl = document.getElementById('order-sheet');
+        const scaleBox = document.getElementById('sheet-scale-box');
+        const prevTransform = scaleBox ? scaleBox.style.transform : '';
+
+        try {
+          showToast('Формування PNG...');
+          if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+          }
+          if (scaleBox) {
+            scaleBox.style.transform = 'none';
+          }
+
+          const canvas = await html2canvas(sheetEl, {
+            scale: 2,
+            width: A4_WIDTH,
+            height: A4_HEIGHT,
+            windowWidth: A4_WIDTH,
+            windowHeight: A4_HEIGHT,
+            backgroundColor: '#fbfaf4',
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            onclone: (clonedDoc) => {
+              const clonedSheet = clonedDoc.getElementById('order-sheet');
+              if (clonedSheet) {
+                clonedSheet.style.width = A4_WIDTH + 'px';
+                clonedSheet.style.height = A4_HEIGHT + 'px';
+                clonedSheet.style.transform = 'none';
+                clonedSheet.style.boxShadow = 'none';
+              }
+              const clonedScaleBox = clonedDoc.getElementById('sheet-scale-box');
+              if (clonedScaleBox) {
+                clonedScaleBox.style.transform = 'none';
+                clonedScaleBox.style.width = A4_WIDTH + 'px';
+                clonedScaleBox.style.height = A4_HEIGHT + 'px';
+              }
+              clonedDoc.querySelectorAll('.editable-slot').forEach((node) => {
+                node.style.backgroundColor = 'transparent';
+                node.style.boxShadow = 'none';
+              });
+            }
+          });
+
+          if (scaleBox) {
+            scaleBox.style.transform = prevTransform;
+          }
+          updateSheetScale();
+
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              showToast('Помилка створення файлу PNG', true);
+              return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const safeNum = (state.fields.number || '000001').replace(/[^a-zA-Z0-9_-]/g, '');
+            a.href = url;
+            a.download = 'Order_NAAU_' + (state.fields.series || 'AA') + '_' + safeNum + '.png';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            showToast('PNG збережено');
+          }, 'image/png');
+        } catch (_) {
+          if (scaleBox) {
+            scaleBox.style.transform = prevTransform;
+          }
+          updateSheetScale();
+          showToast('Не вдалося експортувати PNG', true);
+        }
+      });
+
+      initializeFromInputs();
+      updateSheetScale();
+    })();
+  </script>
+</body>
+</html>
